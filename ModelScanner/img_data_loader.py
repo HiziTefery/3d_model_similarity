@@ -1,9 +1,13 @@
 import pygame, sys
+from PIL.ImageOps import flip
 from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from pygame.constants import *
 from PIL import Image
+from os import listdir
+from os.path import isfile, join
+
 
 def MTL(filename):
     contents = {}
@@ -25,14 +29,15 @@ def MTL(filename):
             texid = mtl['texture_Kd'] = glGenTextures(1)
             glBindTexture(GL_TEXTURE_2D, texid)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                GL_LINEAR)
+                            GL_LINEAR)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-                GL_LINEAR)
+                            GL_LINEAR)
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ix, iy, 0, GL_RGBA,
-                GL_UNSIGNED_BYTE, image)
+                         GL_UNSIGNED_BYTE, image)
         else:
             mtl[values[0]] = map(float, values[1:])
     return contents
+
 
 class OBJ:
     def __init__(self, filename, swapyz=False):
@@ -48,12 +53,12 @@ class OBJ:
             values = line.split()
             if not values: continue
             if values[0] == 'v':
-                v = map(float, values[1:4])
+                v = list(map(float, values[1:4]))
                 if swapyz:
                     v = v[0], v[2], v[1]
                 self.vertices.append(v)
             elif values[0] == 'vn':
-                v = map(float, values[1:4])
+                v = list(map(float, values[1:4]))
                 if swapyz:
                     v = v[0], v[2], v[1]
                 self.normals.append(v)
@@ -106,6 +111,7 @@ class OBJ:
         glDisable(GL_TEXTURE_2D)
         glEndList()
 
+
 def main():
     pygame.init()
     viewport = (800, 600)
@@ -122,10 +128,11 @@ def main():
     glEnable(GL_DEPTH_TEST)
     glShadeModel(GL_SMOOTH)  # most obj files expect to be smooth-shaded
 
-    # Directory Structure!
-    dir_path = sys.argv[1]
+    input_dir = sys.argv[1]
+    files = [f for f in listdir(input_dir) if isfile(join(input_dir, f))]
+    print len(files)
     # LOAD OBJECT AFTER PYGAME INIT
-    obj = OBJ(sys.argv[1], swapyz=True)
+    obj = OBJ("dummy_obj.obj", swapyz=True)
 
     clock = pygame.time.Clock()
 
@@ -150,14 +157,12 @@ def main():
                 sys.exit()
             elif e.type == KEYDOWN and e.key == K_ESCAPE:
                 sys.exit()
-
-
+        glClearColor(1, 1, 1, 1)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
 
         # After 12 screenshot change object
         # RENDER OBJECT
-        glScalef(1, -1, 1)
         # print ("x: " + tx, "ty")
         glTranslate(0, -8, - 15)
         glRotate(-90, 1, 0, 0)
@@ -169,13 +174,18 @@ def main():
         glCallList(obj.gl_list)
         if i % 30 == 0:
             glPixelStorei(GL_PACK_ALIGNMENT, 1)
-            data = glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE)
-            image = Image.frombytes("RGB", (width, height), data)
-            image.save('out' + str(i) + '.png', 'PNG')
+            data = glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE)
+            image = Image.frombytes('RGB', (width, height), data)
+            image = flip(image)
+            image.save('out' + str(i) + '.jpeg')
             iteration = iteration + 1
-            if iteration == 12:
+            if iteration == 11:
                 print("change object")
+                obj = OBJ(files[0], swapyz=True)
                 iteration = 0
+                i = 0
         i = i + 1
         pygame.display.flip()
+
+
 main()
