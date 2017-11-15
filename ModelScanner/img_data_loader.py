@@ -7,42 +7,22 @@ from OpenGL.GLU import *
 from pygame.constants import *
 from PIL import Image
 import os
-from os.path import isfile, join
-import glob
+import time
+import math
+
+green2 = [0.0, 0.5, 0.0, 0.0]
 
 
-def MTL(filename):
-    contents = {}
-    mtl = None
-    for line in open(filename, "r"):
-        if line.startswith('#'): continue
-        values = line.split()
-        if not values: continue
-        if values[0] == 'newmtl':
-            mtl = contents[values[1]] = {}
-        elif mtl is None:
-            raise ValueError("mtl file doesn't start with newmtl stmt")
-        elif values[0] == 'map_Kd':
-            # load the texture referred to by this declaration
-            mtl[values[0]] = values[1]
-            surf = pygame.image.load(mtl['map_Kd'])
-            image = pygame.image.tostring(surf, 'RGBA', 1)
-            ix, iy = surf.get_rect().size
-            texid = mtl['texture_Kd'] = glGenTextures(1)
-            glBindTexture(GL_TEXTURE_2D, texid)
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                            GL_LINEAR)
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-                            GL_LINEAR)
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ix, iy, 0, GL_RGBA,
-                         GL_UNSIGNED_BYTE, image)
-        else:
-            mtl[values[0]] = map(float, values[1:])
-    return contents
+def cross(a, b):
+    c = [a[1] * b[2] - a[2] * b[1],
+         a[2] * b[0] - a[0] * b[2],
+         a[0] * b[1] - a[1] * b[0]]
+
+    return c
 
 
 class OBJ:
-    def __init__(self, filename, swapyz=False):
+    def __init__(self, filename, swapyz=True):
         has_mtl = False
         """Loads a Wavefront OBJ file. """
         self.vertices = []
@@ -69,14 +49,12 @@ class OBJ:
                 self.texcoords.append(map(float, values[1:3]))
             elif values[0] in ('usemtl', 'usemat'):
                 material = values[1]
-            elif values[0] == 'mtllib':
-                self.mtl = MTL(values[1])
-                has_mtl = True
 
             elif values[0] == 'f':
                 face = []
                 texcoords = []
                 norms = []
+                normal_vertices = []
                 for v in values[1:]:
                     w = v.split('/')
                     face.append(int(w[0]))
@@ -88,31 +66,38 @@ class OBJ:
                         norms.append(int(w[2]))
                     else:
                         norms.append(0)
-                self.faces.append((face, norms, texcoords, material))
+                # Per vertex
+                    # Use cross-products to calculate the face normals for the triangles surrounding a given vertex,
+                # add them together, and normalize.
+                vertex1 = [(round(n, 4)) for n in self.vertices[face[0] - 1]]
+                # print 'Vertex1 = ' + str(vertex1)
+                vertex2 = [(round(n, 4)) for n in self.vertices[face[1] - 1]]
+                # print 'Vertex2 = ' + str(vertex2)
+                vertex3 = [(round(n, 4)) for n in self.vertices[face[2] - 1]]
+                # print 'Vertex3 = ' + str(vertex3)
+                vector1 = [vertex2[0] - vertex1[0], vertex2[1] - vertex1[1], vertex2[2] - vertex1[2]]
 
+                vector2 = [vertex3[0] - vertex1[0], vertex3[1] - vertex1[1], vertex3[2] - vertex1[2]]
+                vector3 = [(round(n, 4)) for n in cross(vector2, vector1)]
+
+                # norms.append(normalize(vector3))
+                print("cross product: " + str(vector3))
+
+                # print self.vertices[10]
+                # print "Vertex: " + self.vertices[face[0]]
+
+                self.faces.append((face, norms, texcoords, material))
+                # print(self.faces)
         self.gl_list = glGenLists(1)
         glNewList(self.gl_list, GL_COMPILE)
-        glEnable(GL_TEXTURE_2D)
         glFrontFace(GL_CCW)
         for face in self.faces:
             vertices, normals, texture_coords, material = face
-
-            if has_mtl:
-                mtl = self.mtl[material]
-
-                if 'texture_Kd' in mtl:
-                    # use diffuse texmap
-                        glBindTexture(GL_TEXTURE_2D, mtl['texture_Kd'])
-                else:
-                    # just use diffuse colour
-                    glColor(*mtl['Kd'])
 
             glBegin(GL_POLYGON)
             for i in range(len(vertices)):
                 if normals[i] > 0:
                     glNormal3fv(self.normals[normals[i] - 1])
-                # if texture_coords[i] > 0:
-                #     glTexCoord2fv(self.texcoords[texture_coords[i] - 1])
                 glVertex3fv(self.vertices[vertices[i] - 1])
             glEnd()
         glDisable(GL_TEXTURE_2D)
@@ -120,11 +105,13 @@ class OBJ:
 
 
 def main():
+    target_fps = 60
     pygame.init()
-    viewport = (800, 600)
+    viewport = (1600, 900)
     hx = viewport[0] / 2
     hy = viewport[1] / 2
-    srf = pygame.display.set_mode(viewport, OPENGL | DOUBLEBUF)
+    screen = pygame.display.set_mode(viewport, OPENGL | DOUBLEBUF | GL_DEPTH)
+
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
     glLightfv(GL_LIGHT0, GL_POSITION, (-40, 200, 100, 0.0))
     glLightfv(GL_LIGHT0, GL_AMBIENT, (0.2, 0.2, 0.2, 1.0))
@@ -133,6 +120,7 @@ def main():
     glEnable(GL_LIGHTING)
     glEnable(GL_COLOR_MATERIAL)
     glEnable(GL_DEPTH_TEST)
+    glEnable(GL_NORMALIZE)
     glShadeModel(GL_SMOOTH)  # most obj files expect to be smooth-shaded
 
     input_dir = sys.argv[1]
@@ -140,9 +128,9 @@ def main():
     filenames = os.listdir(input_dir)
     filenames.sort()
 
-    obj = OBJ(input_dir + filenames[0], swapyz=True)
+    obj = OBJ(input_dir + filenames[0], swapyz=False)
 
-    # clock = pygame.time.Clock()
+    clock = pygame.time.Clock()
 
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
@@ -158,20 +146,24 @@ def main():
     i = 0
     iteration = 0
     index = 0
+    prev_time = time.time()
     while 1:
-        # clock.tick(1000)
+        # No wait this is probably fastest speed
+        # clock.tick(10000)
         for e in pygame.event.get():
             if e.type == QUIT:
                 sys.exit()
             elif e.type == KEYDOWN and e.key == K_ESCAPE:
                 sys.exit()
         # glClearColor(1, 1, 1, 1)
+        glClearColor(0.0, 0.0, 0.0, 1.0)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
 
         # After 12 screenshot change object
         # RENDER OBJECT
-        # print ("x: " + tx, "ty")
+        glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, green2)
+        glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, green2)
         glTranslate(0, 0, - 15)
         glRotate(-60, 1, 0, 0)
         # glRotate(30,)
@@ -194,12 +186,20 @@ def main():
             if iteration == 11:
                 print("object: " + filenames[index])
                 index = index + 1
-                obj = OBJ(input_dir + filenames[index], swapyz=True)
+                obj = OBJ(input_dir + filenames[index], swapyz=False)
                 iteration = 0
                 i = 0
 
         i = i + 1
         pygame.display.flip()
+        curr_time = time.time()  # so now we have time after processing
+        diff = curr_time - prev_time  # frame took this much time to process and render
+        delay = max(1.0 / target_fps - diff,
+                    0)  # if we finished early, wait the remaining time to desired fps, else wait 0 ms!
+        time.sleep(delay)
+        fps = 1.0 / (delay + diff)  # fps is based on total time ("processing" diff time + "wasted" delay time)
+        prev_time = curr_time
+        pygame.display.set_caption("{0}: {1:.2f}".format("Demo", fps))
 
 
 main()
