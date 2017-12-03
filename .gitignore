@@ -4,3 +4,6 @@ ModelScanner/\.idea/
 \.idea/
 
 *.jpeg
+
+venv/
+
