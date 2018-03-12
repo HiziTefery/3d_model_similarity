@@ -20,6 +20,79 @@ def normalize_v3(arr):
     return arr
 
 
+class OBJ_FULL:
+    def __init__(self, filename, swapyz=False):
+        """Loads a Wavefront OBJ file. """
+        self.vertices = []
+        self.normals = []
+        self.texcoords = []
+        self.faces = []
+
+        material = None
+        for line in open(filename, "r"):
+            if line.startswith('#'): continue
+            values = line.split()
+            if not values: continue
+            if values[0] == 'v':
+                v = map(float, values[1:4])
+                if swapyz:
+                    v = v[0], v[2], v[1]
+                self.vertices.append(v)
+            elif values[0] == 'vn':
+                v = map(float, values[1:4])
+                if swapyz:
+                    v = v[0], v[2], v[1]
+                self.normals.append(v)
+            elif values[0] == 'vt':
+                self.texcoords.append(map(float, values[1:3]))
+            # elif values[0] in ('usemtl', 'usemat'):
+            #     material = values[1]
+            # elif values[0] == 'mtllib':
+            #     self.mtl = MTL(values[1])
+            elif values[0] == 'f':
+                face = []
+                texcoords = []
+                norms = []
+                for v in values[1:]:
+                    w = v.split('/')
+                    face.append(int(w[0]))
+                    if len(w) >= 2 and len(w[1]) > 0:
+                        texcoords.append(int(w[1]))
+                    else:
+                        texcoords.append(0)
+                    if len(w) >= 3 and len(w[2]) > 0:
+                        norms.append(int(w[2]))
+                    else:
+                        norms.append(0)
+                self.faces.append((face, norms, texcoords, material))
+
+        self.gl_list = glGenLists(1)
+        glNewList(self.gl_list, GL_COMPILE)
+        glEnable(GL_TEXTURE_2D)
+        glFrontFace(GL_CCW)
+        for face in self.faces:
+            vertices, normals, texture_coords, material = face
+
+            # mtl = self.mtl[material]
+            # if 'texture_Kd' in mtl:
+            #     use diffuse texmap
+            # glBindTexture(GL_TEXTURE_2D, mtl['texture_Kd'])
+            # else:
+            #     just use diffuse colour
+            # glColor(*mtl['Kd'])
+
+            glBegin(GL_POLYGON)
+            for i in range(len(vertices)):
+                if normals[i] > 0:
+                    glNormal3fv(self.normals[normals[i] - 1])
+                if texture_coords[i] > 0:
+                    glTexCoord2fv(self.texcoords[texture_coords[i] - 1])
+                glVertex3fv(self.vertices[vertices[i] - 1])
+            glEnd()
+        glDisable(GL_TEXTURE_2D)
+        glEndList()
+
+
 class OBJ:
     def __init__(self, filename, swapyz=True):
         # has_mtl = False
@@ -53,6 +126,7 @@ class OBJ:
                 for v in values[1:]:
                     w = v.split('/')
                     face.append(int(w[0]) - 1)
+                    # USELESS FOR OUR TEST SET
                     # if len(w) >= 2 and len(w[1]) > 0:
                     #     texcoords.append(int(w[1]))
                     # else:
@@ -116,23 +190,31 @@ def main():
 
     screen = pygame.display.set_mode(viewport, OPENGL | DOUBLEBUF | GL_DEPTH)
 
-    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
-    glLightfv(GL_LIGHT0, GL_POSITION, (-40, 200, 100, 0.0))
+    glShadeModel(GL_SMOOTH)
+    # glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
+    glMaterialfv(GL_FRONT, GL_SPECULAR, (1.0, 1.0, 1.0, 1.0))
+    glMaterialfv(GL_FRONT, GL_SHININESS, (50.0))
+    glLightfv(GL_LIGHT0, GL_POSITION, (400, 400, 400, 0.0))
+    glLightfv(GL_LIGHT1, GL_POSITION, (-800, -800, -800, 0.0))
+
     glLightfv(GL_LIGHT0, GL_AMBIENT, (0.2, 0.2, 0.2, 1.0))
     glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.5, 0.5, 0.5, 1.0))
+    glLightfv(GL_LIGHT1, GL_AMBIENT, (0.2, 0.2, 0.2, 1.0))
+    glLightfv(GL_LIGHT1, GL_DIFFUSE, (0.5, 0.5, 0.5, 1.0))
+    glEnable(GL_LIGHT1)
     glEnable(GL_LIGHT0)
     glEnable(GL_LIGHTING)
-    glEnable(GL_COLOR_MATERIAL)
+    # glEnable(GL_COLOR_MATERIAL)
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_NORMALIZE)
-    glShadeModel(GL_SMOOTH)  # most obj files expect to be smooth-shaded
+    # most obj files expect to be smooth-shaded
 
     input_dir = sys.argv[1]
     output_dir = sys.argv[2]
     filenames = os.listdir(input_dir)
     filenames.sort()
 
-    obj = OBJ(input_dir + filenames[0], swapyz=False)
+    obj = OBJ_FULL(input_dir + filenames[0], swapyz=False)
 
     clock = pygame.time.Clock()
 
@@ -164,10 +246,11 @@ def main():
         # After 12 screenshot change object
         # RENDER OBJECT
         glTranslate(0, 0, - 15)
-        glRotate(-60, 1, 0, 0)
-        glRotate(i, 0, 0, 1)
+        glRotate(-90, 0, 1, 0)
+        glRotate(-30, 0, 0, 1)
+        glRotate(i, 0, 1, 0)
 
-        glScale(15.0, 15.0, 15.0)
+        glScale(18.0, 18.0, 18.0)
         glCallList(obj.gl_list)
         if i % 30 == 0:
             glPixelStorei(GL_PACK_ALIGNMENT, 1)
