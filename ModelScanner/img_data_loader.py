@@ -191,12 +191,14 @@ def main():
     screen = pygame.display.set_mode(viewport, OPENGL | DOUBLEBUF | GL_DEPTH)
 
     glShadeModel(GL_SMOOTH)
-    # glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
-    glMaterialfv(GL_FRONT, GL_SPECULAR, (1.0, 1.0, 1.0, 1.0))
+    # glShadeModel(GL_FLAT)
+
+    # glMaterialfv(GL_FRONT, GL_SPECULAR, (1.0, 1.0, 1.0, 1.0))
     glMaterialfv(GL_FRONT, GL_SHININESS, (50.0))
     glLightfv(GL_LIGHT0, GL_POSITION, (400, 400, 400, 0.0))
     glLightfv(GL_LIGHT1, GL_POSITION, (-800, -800, -800, 0.0))
 
+    # Setting and enabling lights
     glLightfv(GL_LIGHT0, GL_AMBIENT, (0.2, 0.2, 0.2, 1.0))
     glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.5, 0.5, 0.5, 1.0))
     glLightfv(GL_LIGHT1, GL_AMBIENT, (0.2, 0.2, 0.2, 1.0))
@@ -207,6 +209,7 @@ def main():
     # glEnable(GL_COLOR_MATERIAL)
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_NORMALIZE)
+
     # most obj files expect to be smooth-shaded
 
     input_dir = sys.argv[1]
@@ -222,9 +225,7 @@ def main():
     glLoadIdentity()
     width, height = viewport
     gluPerspective(90.0, width / float(height), 1, 100.0)
-    glEnable(GL_DEPTH_TEST)
     glMatrixMode(GL_MODELVIEW)
-
 
     i = 0
     iteration = 0
@@ -251,6 +252,8 @@ def main():
         glRotate(i, 0, 1, 0)
 
         glScale(18.0, 18.0, 18.0)
+
+        glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, 1.0, 0.0, 0.0, 0.0)
         glCallList(obj.gl_list)
         if i % 30 == 0:
             glPixelStorei(GL_PACK_ALIGNMENT, 1)
@@ -265,7 +268,7 @@ def main():
             if iteration == 11:
                 print("object: " + filenames[index])
                 index = index + 1
-                obj = OBJ(input_dir + filenames[index], swapyz=False)
+                obj = OBJ_FULL(input_dir + filenames[index], swapyz=False)
                 iteration = 0
                 i = 0
 

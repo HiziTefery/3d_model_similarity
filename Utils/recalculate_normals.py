@@ -37,6 +37,7 @@ for x in obj_list:
                 # export to OBJ
                 bpy.ops.export_scene.obj(filepath=result_path_dir + 'new_' + ob.name + '.obj', use_selection=True, use_normals=True, use_materials=False)
                 bpy.ops.object.delete()
-    # bpy.data.scenes.remove(scene, True)
+        # Not neccessary
+        bpy.data.scenes.remove(scene, True)
         # deselect this object again
-        # ob.select = False
+        ob.select = False
