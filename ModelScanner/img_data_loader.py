@@ -194,15 +194,15 @@ def main():
     # glShadeModel(GL_FLAT)
 
     # glMaterialfv(GL_FRONT, GL_SPECULAR, (1.0, 1.0, 1.0, 1.0))
-    glMaterialfv(GL_FRONT, GL_SHININESS, (50.0))
+    glMaterialfv(GL_FRONT, GL_SHININESS, (10.0))
     glLightfv(GL_LIGHT0, GL_POSITION, (400, 400, 400, 0.0))
     glLightfv(GL_LIGHT1, GL_POSITION, (-800, -800, -800, 0.0))
 
     # Setting and enabling lights
-    glLightfv(GL_LIGHT0, GL_AMBIENT, (0.2, 0.2, 0.2, 1.0))
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.5, 0.5, 0.5, 1.0))
-    glLightfv(GL_LIGHT1, GL_AMBIENT, (0.2, 0.2, 0.2, 1.0))
-    glLightfv(GL_LIGHT1, GL_DIFFUSE, (0.5, 0.5, 0.5, 1.0))
+    glLightfv(GL_LIGHT0, GL_AMBIENT, (1, 1, 1, 1.0))
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, (1, 1, 1, 1.0))
+    glLightfv(GL_LIGHT1, GL_AMBIENT, (1, 1, 1, 1.0))
+    glLightfv(GL_LIGHT1, GL_DIFFUSE, (1, 1, 1, 1.0))
     glEnable(GL_LIGHT1)
     glEnable(GL_LIGHT0)
     glEnable(GL_LIGHTING)
@@ -228,7 +228,7 @@ def main():
     glMatrixMode(GL_MODELVIEW)
 
     i = 0
-    iteration = 0
+    iteration = 1
     index = 0
     prev_time = time.time()
     while 1:
@@ -253,9 +253,10 @@ def main():
 
         glScale(18.0, 18.0, 18.0)
 
-        glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, 1.0, 0.0, 0.0, 0.0)
+        # glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, 1)
         glCallList(obj.gl_list)
-        if i % 30 == 0:
+
+        if i % 30 == 0 or i == 0:
             glPixelStorei(GL_PACK_ALIGNMENT, 1)
             data = glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE)
             image = Image.frombytes('RGB', (width, height), data)
@@ -263,13 +264,13 @@ def main():
             output = output_dir + filenames[index].split('.')[0]
             if not os.path.exists(output):
                 os.makedirs(output)
-            image.save(output + '/out' + str(i) + '.jpeg')
+            image.save(output + '/image_' + str(iteration) + '.jpeg')
             iteration = iteration + 1
-            if iteration == 11:
+            if iteration == 13:
                 print("object: " + filenames[index])
                 index = index + 1
                 obj = OBJ_FULL(input_dir + filenames[index], swapyz=False)
-                iteration = 0
+                iteration = 1
                 i = 0
 
         i = i + 1
