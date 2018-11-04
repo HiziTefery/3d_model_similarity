@@ -3,7 +3,7 @@ import csv
 
 data = []
 path = '../screenshots/'
-with open('/home/hizi/Downloads/train _ordered.csv', 'rb') as csvfile:
+with open('/home/hizi/Downloads/train_ordered.csv', 'rb') as csvfile:
     raw = csv.reader(csvfile, delimiter=' ', quotechar='|')
 
     for row in raw:
@@ -15,5 +15,6 @@ with open('/home/hizi/Downloads/train _ordered.csv', 'rb') as csvfile:
         data.append({'files': files, '_categories': [row_data[1]]})
 
 with open('images.json', 'w') as outfile:
-    json.dump(data, outfile)
+    for row in data:
+        outfile.write(json.dumps(row) + '\n')
 
