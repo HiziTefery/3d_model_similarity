@@ -1,3 +1,5 @@
+import json
+
 import mahotas
 import numpy as np
 import argparse
@@ -23,12 +25,14 @@ ap.add_argument("-i", "--index", required=True,
                 help="Path to where the index file will be stored")
 args = vars(ap.parse_args())
 
-# Radius 21 is optimal for testing
+
 desc = ZernikeMoments(250)
-indexes = {}
+indexes = []
 
 # paths = glob('*/')
 for dirPath in glob.glob(args["images"] + '*'):
+    obj_image_index = []
+    obj_name = dirPath.split('/')[-1]
     for imagePath in glob.glob(dirPath + "/*.jpeg"):
         # parse out the image name, then load the image and
         # convert it to grayscale
@@ -38,29 +42,20 @@ for dirPath in glob.glob(args["images"] + '*'):
         thresh = cv2.bitwise_not(image)
         thresh[thresh > 0] = 255
 
-        # cv2.drawContours(out, [contours], -1, 255, -1)
-
-        # out = np.zeros(image.shape, dtype="uint8")
-        # (_, contours, _) = cv2.findContours(image.copy(), cv2.RETR_EXTERNAL,
-        #                                     cv2.CHAIN_APPROX_SIMPLE)
-        # contours = sorted(contours, key=cv2.contourArea, reverse=True)[0]
-        # cv2.drawContours(out, [contours], -1, 255, -1)
-
-        # (_, contours, _) = cv2.findContours(image.copy(), cv2.RETR_LIST,
-        #                                     cv2.CHAIN_APPROX_SIMPLE)
         ret, thresh = cv2.threshold(image, 50, 255, 0)
         im2, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         out = np.zeros_like(image)
         cv2.drawContours(out, contours, -1, 255, -1)
-        moments = desc.describe(out)
-
+        moments = desc.describe(out).tolist()
+        obj_image_index.append(moments)
         # cv2.imshow('image', image)
         # cv2.imshow('Output Contour', out)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
-        print indexes
-        indexes[imagePath] = moments
-f = open(args["index"], "w")
-f.write(cPickle.dumps(indexes))
-f.close()
+    indexes.append({obj_name: obj_image_index})
+
+with open('index.json', 'w') as outfile:
+    for row in indexes:
+        data = json.dumps(row) + '\n'
+        outfile.write(data)
